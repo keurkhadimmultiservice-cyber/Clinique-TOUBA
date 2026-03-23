@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a clinic staff member.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "Full name" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "role": { "type": "string", "enum": ["admin", "doctor", "receptionist"], "description": "Staff role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation date" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Patient": {
+      "title": "Patient Record",
+      "description": "Medical and personal information of a patient.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name" },
+        "age": { "type": "number", "description": "Age" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "address": { "type": "string", "description": "Home address" },
+        "history": { "type": "string", "description": "Medical history" },
+        "lastVisit": { "type": "string", "format": "date", "description": "Last visit date" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation date" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Record update date" }
+      },
+      "required": ["name", "age", "phone"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled medical appointment.",
+      "type": "object",
+      "properties": {
+        "patient": { "type": "string", "description": "Patient name" },
+        "doctor": { "type": "string", "description": "Doctor name" },
+        "date": { "type": "string", "format": "date-time", "description": "Appointment date and time" },
+        "time": { "type": "string", "description": "Appointment time string" },
+        "status": { "type": "string", "enum": ["Confirmé", "En attente", "Terminé", "Annulé"], "description": "Appointment status" },
+        "type": { "type": "string", "description": "Appointment type" },
+        "notes": { "type": "string", "description": "Optional notes" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation date" }
+      },
+      "required": ["patient", "doctor", "date", "status"]
+    },
+    "Consultation": {
+      "title": "Consultation",
+      "description": "Record of a medical consultation.",
+      "type": "object",
+      "properties": {
+        "patient": { "type": "string", "description": "Patient name" },
+        "doctor": { "type": "string", "description": "Doctor name" },
+        "date": { "type": "string", "format": "date", "description": "Consultation date" },
+        "diagnosis": { "type": "string", "description": "Medical diagnosis" },
+        "prescriptions": { "type": "array", "items": { "type": "string" }, "description": "Prescribed medications" },
+        "attachments": { "type": "array", "items": { "type": "object" }, "description": "Attached files" },
+        "notes": { "type": "string", "description": "Doctor's notes" },
+        "history": { "type": "string", "description": "Patient history" },
+        "vitals": { "type": "object", "description": "Patient vitals" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation date" }
+      },
+      "required": ["patient", "doctor", "date", "diagnosis"]
+    },
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Information about a medical doctor.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name" },
+        "speciality": { "type": "string", "description": "Medical speciality" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "experience": { "type": "string", "description": "Years of experience" },
+        "availability": { "type": "array", "items": { "type": "string" }, "description": "Available days" },
+        "image": { "type": "string", "description": "Profile image URL" },
+        "rating": { "type": "number", "description": "Doctor rating" },
+        "patients": { "type": "string", "description": "Total patients count" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation date" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Record update date" }
+      },
+      "required": ["name", "speciality", "email"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Billing information for a patient.",
+      "type": "object",
+      "properties": {
+        "invoiceId": { "type": "string", "description": "Human-readable invoice ID" },
+        "patient": { "type": "string", "description": "Patient name" },
+        "amount": { "type": "number", "description": "Total amount" },
+        "status": { "type": "string", "enum": ["Payé", "Impayé", "Partiel"], "description": "Payment status" },
+        "date": { "type": "string", "format": "date", "description": "Invoice date" },
+        "method": { "type": "string", "description": "Payment method" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Record creation date" }
+      },
+      "required": ["invoiceId", "patient", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Staff profiles."
+    },
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patient records."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Clinic appointments."
+    },
+    "/consultations/{consultationId}": {
+      "schema": "Consultation",
+      "description": "Medical consultations."
+    },
+    "/doctors/{doctorId}": {
+      "schema": "Doctor",
+      "description": "Doctor profiles."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Patient invoices."
+    }
+  }
+}

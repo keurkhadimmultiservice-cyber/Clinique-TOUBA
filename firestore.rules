@@ -1,0 +1,231 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Auth UID)
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - name: string (required) - Full name
+    //   - email: string (required, email format) - Email address
+    //   - role: string (required, enum: admin, doctor, receptionist) - Staff role
+    //   - createdAt: timestamp (optional) - Account creation date
+    //
+    // Collection: patients
+    // Document ID: patientId
+    // Fields:
+    //   - name: string (required) - Full name
+    //   - age: number (required) - Age
+    //   - phone: string (required) - Phone number
+    //   - address: string (optional) - Home address
+    //   - history: string (optional) - Medical history
+    //   - lastVisit: string (optional, date format) - Last visit date
+    //   - createdAt: timestamp (optional) - Record creation date
+    //   - updatedAt: timestamp (optional) - Record update date
+    //
+    // Collection: appointments
+    // Document ID: appointmentId
+    // Fields:
+    //   - patient: string (required) - Patient name
+    //   - doctor: string (required) - Doctor name
+    //   - date: timestamp (required) - Appointment date and time
+    //   - time: string (optional) - Appointment time string
+    //   - status: string (required, enum: Confirmé, En attente, Terminé, Annulé) - Appointment status
+    //   - type: string (optional) - Appointment type
+    //   - notes: string (optional) - Optional notes
+    //   - createdAt: timestamp (optional) - Record creation date
+    //
+    // Collection: consultations
+    // Document ID: consultationId
+    // Fields:
+    //   - patient: string (required) - Patient name
+    //   - doctor: string (required) - Doctor name
+    //   - date: string (required, date format) - Consultation date
+    //   - diagnosis: string (required) - Medical diagnosis
+    //   - prescriptions: list (optional) - Prescribed medications
+    //   - attachments: list (optional) - Attached files
+    //   - notes: string (optional) - Doctor's notes
+    //   - history: string (optional) - Patient history
+    //   - vitals: map (optional) - Patient vitals
+    //   - createdAt: timestamp (optional) - Record creation date
+    //
+    // Collection: doctors
+    // Document ID: doctorId
+    // Fields:
+    //   - name: string (required) - Full name
+    //   - speciality: string (required) - Medical speciality
+    //   - phone: string (optional) - Phone number
+    //   - email: string (required, email format) - Email address
+    //   - experience: string (optional) - Years of experience
+    //   - availability: list (optional) - Available days
+    //   - image: string (optional) - Profile image URL
+    //   - rating: number (optional) - Doctor rating
+    //   - patients: string (optional) - Total patients count
+    //   - createdAt: timestamp (optional) - Record creation date
+    //   - updatedAt: timestamp (optional) - Record update date
+    //
+    // Collection: invoices
+    // Document ID: invoiceId
+    // Fields:
+    //   - invoiceId: string (required) - Human-readable invoice ID
+    //   - patient: string (required) - Patient name
+    //   - amount: number (required) - Total amount
+    //   - status: string (required, enum: Payé, Impayé, Partiel) - Payment status
+    //   - date: string (optional, date format) - Invoice date
+    //   - method: string (optional) - Payment method
+    //   - createdAt: timestamp (optional) - Record creation date
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "keurkhadimmultiservice@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "amdynd@gmail.com"));
+    }
+
+    function isDoctor() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'doctor';
+    }
+
+    function isReceptionist() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'receptionist';
+    }
+
+    function isStaff() {
+      return isAdmin() || isDoctor() || isReceptionist();
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'name', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'doctor', 'receptionist'];
+    }
+
+    function isValidPatient(data) {
+      return hasRequiredFields(['name', 'age', 'phone']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.age is number && data.age >= 0 && data.age < 150 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 30;
+    }
+
+    function isValidAppointment(data) {
+      return hasRequiredFields(['patient', 'doctor', 'date', 'status']) &&
+             data.patient is string && data.patient.size() > 0 && data.patient.size() < 100 &&
+             data.doctor is string && data.doctor.size() > 0 && data.doctor.size() < 100 &&
+             data.date is timestamp &&
+             data.status in ['Confirmé', 'En attente', 'Terminé', 'Annulé'];
+    }
+
+    function isValidConsultation(data) {
+      return hasRequiredFields(['patient', 'doctor', 'date', 'diagnosis']) &&
+             data.patient is string && data.patient.size() > 0 && data.patient.size() < 100 &&
+             data.doctor is string && data.doctor.size() > 0 && data.doctor.size() < 100 &&
+             data.date is string &&
+             data.diagnosis is string && data.diagnosis.size() > 0 && data.diagnosis.size() < 5000;
+    }
+
+    function isValidDoctor(data) {
+      return hasRequiredFields(['name', 'speciality', 'email']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.speciality is string && data.speciality.size() > 0 && data.speciality.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('availability' in data) || data.availability is list);
+    }
+
+    function isValidInvoice(data) {
+      return hasRequiredFields(['invoiceId', 'patient', 'amount', 'status']) &&
+             data.invoiceId is string &&
+             data.patient is string &&
+             data.amount is number &&
+             data.status in ['Payé', 'Impayé', 'Partiel'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Each user can only read and write their own profile
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /patients/{patientId} {
+      // Patients are shared clinic data, accessible only by staff
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidPatient(request.resource.data);
+      allow update: if isStaff() && isValidPatient(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      // Appointments are accessible by the assigned doctor, receptionist, or admin
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidAppointment(request.resource.data);
+      allow update: if isStaff() && isValidAppointment(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /consultations/{consultationId} {
+      // Consultations are sensitive medical data, accessible only by staff
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidConsultation(request.resource.data);
+      allow update: if isStaff() && isValidConsultation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /doctors/{doctorId} {
+      // Doctor profiles are public within the clinic staff
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidDoctor(request.resource.data);
+      allow update: if (isAdmin() || (isDoctor() && request.auth.uid == doctorId)) && isValidDoctor(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      // Invoices are accessible by staff
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidInvoice(request.resource.data);
+      allow update: if isStaff() && isValidInvoice(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
